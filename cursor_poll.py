@@ -28,18 +28,21 @@ def request(command):
     return json.loads(b"".join(chunks))
 
 
+def monitor_geometry(monitor):
+    scale = monitor.get("scale") or 1
+    width = monitor.get("width", 0) / scale
+    height = monitor.get("height", 0) / scale
+    transform = monitor.get("transform", 0)
+    if transform in (1, 3, 5, 7):
+        width, height = height, width
+    return monitor.get("x", 0), monitor.get("y", 0), width, height
+
+
 def monitor_at(monitors, x, y):
     for monitor in monitors:
         if monitor.get("disabled"):
             continue
-        scale = monitor.get("scale") or 1
-        width = monitor.get("width", 0) / scale
-        height = monitor.get("height", 0) / scale
-        transform = monitor.get("transform", 0)
-        if transform in (1, 3, 5, 7):
-            width, height = height, width
-        left = monitor.get("x", 0)
-        top = monitor.get("y", 0)
+        left, top, width, height = monitor_geometry(monitor)
         if left <= x < left + width and top <= y < top + height:
             return monitor
     return None
@@ -58,8 +61,12 @@ def main():
 
             position = request("cursorpos")
             monitor = monitor_at(monitors, position["x"], position["y"])
-            top = monitor.get("y", 0) if monitor else 0
-            print(position["y"] - top, flush=True)
+            if monitor:
+                left, top, width, height = monitor_geometry(monitor)
+                print(
+                    f"{position['x'] - left},{position['y'] - top},{width},{height}",
+                    flush=True,
+                )
         except (KeyError, OSError, ValueError):
             pass
         time.sleep(POLL_INTERVAL_SECONDS)

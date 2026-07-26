@@ -6,8 +6,8 @@ import qs.Commons
 Item {
   id: root
 
-  readonly property int revealY: 0
-  readonly property int closeY: shell && shell.bar ? shell.bar.barSize : 0
+  readonly property int revealDistance: 0
+  readonly property int closeDistance: shell && shell.bar ? shell.bar.barSize : 0
   readonly property int hideDelayMs: 100
 
   property string configHome: Quickshell.env("XDG_CONFIG_HOME")
@@ -33,17 +33,33 @@ Item {
       Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
   }
 
+  function distanceFromBarEdge(cursorX, cursorY, monitorWidth, monitorHeight) {
+    var position = shell && shell.bar ? shell.bar.position : "top"
+    if (position === "bottom") return monitorHeight - 1 - cursorY
+    if (position === "left") return cursorX
+    if (position === "right") return monitorWidth - 1 - cursorX
+    return cursorY
+  }
+
   Process {
     running: true
     command: ["python3", root.cursorPoller]
     stdout: SplitParser {
       onRead: function(line) {
-        var cursorY = Number(String(line).trim())
-        if (!isFinite(cursorY)) return
+        var fields = String(line).trim().split(",")
+        if (fields.length !== 4) return
+        var cursorX = Number(fields[0])
+        var cursorY = Number(fields[1])
+        var monitorWidth = Number(fields[2])
+        var monitorHeight = Number(fields[3])
+        if (!isFinite(cursorX) || !isFinite(cursorY)
+            || !isFinite(monitorWidth) || !isFinite(monitorHeight)) return
+        var edgeDistance = root.distanceFromBarEdge(
+          cursorX, cursorY, monitorWidth, monitorHeight)
 
-        if (cursorY <= root.revealY) {
+        if (edgeDistance <= root.revealDistance) {
           root.showBar()
-        } else if (cursorY <= root.closeY) {
+        } else if (edgeDistance <= root.closeDistance) {
           root.hideAtTime = 0
         } else if (!root.hideAtTime && shell && shell.bar && !shell.bar.barHidden) {
           root.hideAtTime = Date.now() + root.hideDelayMs

@@ -1,16 +1,18 @@
 # Omarchy Autohide
 
-An efficient auto-hide service plugin for the Omarchy top bar.
+An efficient auto-hide service plugin for the Omarchy bar.
 
 > [!IMPORTANT]
-> This plugin is for **Omarchy 4 (Quattro)**, where the desktop shell and top
-> bar use [Quickshell](https://quickshell.org/). It is not intended for older
+> This plugin is for **Omarchy 4 (Quattro)**, where the desktop shell and bar
+> use [Quickshell](https://quickshell.org/). It is not intended for older
 > Omarchy releases that use Waybar.
 
 ## Behavior
 
-- Reveals the bar only when the pointer reaches the topmost pixel of a monitor.
-- Keeps the bar open while the pointer remains within the bar's current height.
+- Supports bars anchored to the top, bottom, left, or right screen edge.
+- Reveals the bar only when the pointer reaches its anchored screen edge.
+- Keeps the bar open while the pointer remains within the bar's current
+  thickness.
 - Hides the bar 100ms after the pointer leaves that area.
 - Keeps the bar visible while a bar popout is open.
 - Handles workspace switches that cause the bar to become visible again.
@@ -64,12 +66,13 @@ cd omarchy-autohide
 Defaults are near the top of `Service.qml`:
 
 ```qml
-readonly property int revealY: 0
+readonly property int revealDistance: 0
 readonly property int hideDelayMs: 100
 ```
 
 The closing boundary is detected automatically from Omarchy's live
-`shell.bar.barSize` value.
+`shell.bar.barSize` value. The active edge is detected from
+`shell.bar.position`.
 
 Polling frequency is controlled by `POLL_INTERVAL_SECONDS` in
 `cursor_poll.py`.
