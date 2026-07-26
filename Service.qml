@@ -7,7 +7,7 @@ Item {
   id: root
 
   readonly property int revealY: 0
-  readonly property int closeY: 36
+  readonly property int closeY: shell && shell.bar ? shell.bar.barSize : 0
   readonly property int hideDelayMs: 100
 
   property string configHome: Quickshell.env("XDG_CONFIG_HOME")

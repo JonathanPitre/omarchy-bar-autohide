@@ -10,7 +10,7 @@ An efficient auto-hide service plugin for the Omarchy top bar.
 ## Behavior
 
 - Reveals the bar only when the pointer reaches the topmost pixel of a monitor.
-- Keeps the bar open while the pointer remains within the top 36 pixels.
+- Keeps the bar open while the pointer remains within the bar's current height.
 - Hides the bar 100ms after the pointer leaves that area.
 - Keeps the bar visible while a bar popout is open.
 - Handles workspace switches that cause the bar to become visible again.
@@ -65,9 +65,11 @@ Defaults are near the top of `Service.qml`:
 
 ```qml
 readonly property int revealY: 0
-readonly property int closeY: 36
 readonly property int hideDelayMs: 100
 ```
+
+The closing boundary is detected automatically from Omarchy's live
+`shell.bar.barSize` value.
 
 Polling frequency is controlled by `POLL_INTERVAL_SECONDS` in
 `cursor_poll.py`.
