@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "autohide",
+  "name": "Autohide",
+  "version": "1.0.0",
+  "author": "Eric van Rees",
+  "description": "Efficiently auto-hide the Omarchy bar",
+  "kinds": ["service"],
+  "entryPoints": {
+    "service": "Service.qml"
+  }
+}
