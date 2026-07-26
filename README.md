@@ -2,6 +2,11 @@
 
 An efficient auto-hide service plugin for the Omarchy top bar.
 
+> [!IMPORTANT]
+> This plugin is for **Omarchy 4 (Quattro)**, where the desktop shell and top
+> bar use [Quickshell](https://quickshell.org/). It is not intended for older
+> Omarchy releases that use Waybar.
+
 ## Behavior
 
 - Reveals the bar only when the pointer reaches the topmost pixel of a monitor.
