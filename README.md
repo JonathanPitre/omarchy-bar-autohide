@@ -1,6 +1,6 @@
 # Omarchy Autohide
 
-An efficient auto-hide service plugin for the Omarchy bar.
+An event-driven auto-hide service plugin for the Omarchy bar.
 
 > [!IMPORTANT]
 > This plugin is for **Omarchy 4 (Quattro)**, where the desktop shell and bar
@@ -11,21 +11,22 @@ An efficient auto-hide service plugin for the Omarchy bar.
 
 - Supports bars anchored to the top, bottom, left, or right screen edge.
 - Reveals the bar only when the pointer reaches its anchored screen edge.
-- Keeps the bar open while the pointer remains within the bar's current
-  thickness.
-- Hides the bar 100ms after the pointer leaves that area.
+- Keeps the bar open while the pointer remains over it.
+- Hides the bar 1000ms after the pointer leaves that area.
+- Leaves the bar visible when the user opens it with the bar hotkey.
 - Keeps the bar visible while a bar popout is open.
-- Handles workspace switches that cause the bar to become visible again.
-- Supports scaled, rotated, and vertically offset monitors.
+- Supports multiple monitors, scaling, rotation, and monitor offsets.
 
-Cursor position is read through Hyprland's Unix socket by one persistent Python
-process. It does not repeatedly launch `bash` or `hyprctl`.
+A transparent one-pixel Quickshell surface listens for pointer entry at the bar
+edge. Omarchy's existing whole-bar hover state handles pointer exit. There is no
+cursor polling and no persistent helper process, so the plugin causes no idle
+timer wakeups.
 
 ## Requirements
 
 - Omarchy with the Quickshell bar
 - Hyprland
-- Python 3
+- Python 3 during installation only
 
 ## Install
 
@@ -66,16 +67,14 @@ cd omarchy-autohide
 Defaults are near the top of `Service.qml`:
 
 ```qml
-readonly property int revealDistance: 0
-readonly property int hideDelayMs: 100
+readonly property int revealThickness: 1
+readonly property int hideDelayMs: 1000
 ```
 
-The closing boundary is detected automatically from Omarchy's live
-`shell.bar.barSize` value. The active edge is detected from
-`shell.bar.position`.
-
-Polling frequency is controlled by `POLL_INTERVAL_SECONDS` in
-`cursor_poll.py`.
+The active edge is detected from `shell.bar.position`. Increasing
+`revealThickness` makes the invisible edge trigger easier to reach, but also
+makes that many pixels intercept pointer input while the bar is hidden or was
+revealed by the edge trigger.
 
 Re-run `./install.sh` after editing a clone outside the installed plugin
 directory.

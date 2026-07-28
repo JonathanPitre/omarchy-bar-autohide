@@ -23,10 +23,8 @@ mkdir -p "$plugin_dir" "$(dirname -- "$shell_config")"
 if [[ $source_dir != "$plugin_dir" ]]; then
   install -m 0644 "$source_dir/manifest.json" "$plugin_dir/manifest.json"
   install -m 0644 "$source_dir/Service.qml" "$plugin_dir/Service.qml"
-  install -m 0755 "$source_dir/cursor_poll.py" "$plugin_dir/cursor_poll.py"
-else
-  chmod 0755 "$plugin_dir/cursor_poll.py"
 fi
+rm -f "$plugin_dir/cursor_poll.py"
 
 if [[ ! -f $shell_config ]]; then
   if [[ ! -f $defaults ]]; then

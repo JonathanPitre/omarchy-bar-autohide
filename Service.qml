@@ -1,73 +1,85 @@
 import Quickshell
-import Quickshell.Io
+import Quickshell.Wayland
 import QtQuick
 import qs.Commons
 
 Item {
   id: root
 
-  readonly property int revealDistance: 0
-  readonly property int closeDistance: shell && shell.bar ? shell.bar.barSize : 0
-  readonly property int hideDelayMs: 100
+  readonly property int revealThickness: 1
+  readonly property int hideDelayMs: 1000
 
-  property string configHome: Quickshell.env("XDG_CONFIG_HOME")
-    ? Quickshell.env("XDG_CONFIG_HOME")
-    : Quickshell.env("HOME") + "/.config"
   property string toggleDir: Quickshell.env("HOME") + "/.local/state/omarchy/toggles"
   property string barOffFile: toggleDir + "/bar-off"
-  property string cursorPoller: configHome + "/omarchy/plugins/autohide/cursor_poll.py"
   property var shell: null
-  property var hideAtTime: 0
+  property bool autoRevealed: false
+  property bool edgeHovered: false
+  readonly property var bar: shell ? shell.bar : null
+  readonly property string position: bar ? bar.position : "top"
+  readonly property bool vertical: position === "left" || position === "right"
+  readonly property bool barHidden: bar ? bar.barHidden : true
+  readonly property bool barHovered: bar && "centerSectionHovered" in bar
+    ? bar.centerSectionHovered : false
+  readonly property bool popoutOpen: bar && bar.activePopout !== null
 
   function hideBar() {
-    if (shell && shell.bar && shell.bar.activePopout) {
-      root.hideAtTime = Date.now() + root.hideDelayMs
-      return
-    }
+    if (!root.autoRevealed || !bar || bar.barHidden
+        || root.edgeHovered || root.barHovered || root.popoutOpen) return
+    root.autoRevealed = false
     Util.execDetached("touch " + Util.shellQuote(barOffFile))
   }
 
   function showBar() {
-    root.hideAtTime = 0
-    if (shell && shell.bar && shell.bar.barHidden)
+    if (bar && bar.barHidden) {
+      root.autoRevealed = true
       Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
+    }
   }
 
-  function distanceFromBarEdge(cursorX, cursorY, monitorWidth, monitorHeight) {
-    var position = shell && shell.bar ? shell.bar.position : "top"
-    if (position === "bottom") return monitorHeight - 1 - cursorY
-    if (position === "left") return cursorX
-    if (position === "right") return monitorWidth - 1 - cursorX
-    return cursorY
+  Timer {
+    interval: root.hideDelayMs
+    running: root.autoRevealed && !root.barHidden
+      && !root.edgeHovered && !root.barHovered && !root.popoutOpen
+    onTriggered: root.hideBar()
   }
 
-  Process {
-    running: true
-    command: ["python3", root.cursorPoller]
-    stdout: SplitParser {
-      onRead: function(line) {
-        var fields = String(line).trim().split(",")
-        if (fields.length !== 4) return
-        var cursorX = Number(fields[0])
-        var cursorY = Number(fields[1])
-        var monitorWidth = Number(fields[2])
-        var monitorHeight = Number(fields[3])
-        if (!isFinite(cursorX) || !isFinite(cursorY)
-            || !isFinite(monitorWidth) || !isFinite(monitorHeight)) return
-        var edgeDistance = root.distanceFromBarEdge(
-          cursorX, cursorY, monitorWidth, monitorHeight)
+  Connections {
+    target: root.bar
+    function onBarHiddenChanged() {
+      if (root.barHidden) root.autoRevealed = false
+    }
+  }
 
-        if (edgeDistance <= root.revealDistance) {
-          root.showBar()
-        } else if (edgeDistance <= root.closeDistance) {
-          root.hideAtTime = 0
-        } else if (!root.hideAtTime && shell && shell.bar && !shell.bar.barHidden) {
-          root.hideAtTime = Date.now() + root.hideDelayMs
+  Variants {
+    model: Quickshell.screens
+
+    delegate: Component {
+      PanelWindow {
+        required property var modelData
+
+        screen: modelData
+        visible: root.barHidden || root.autoRevealed
+        color: "transparent"
+        exclusionMode: ExclusionMode.Ignore
+        implicitWidth: root.vertical ? root.revealThickness : 0
+        implicitHeight: root.vertical ? 0 : root.revealThickness
+
+        anchors {
+          top: root.position === "top" || root.vertical
+          bottom: root.position === "bottom" || root.vertical
+          left: root.position === "left" || !root.vertical
+          right: root.position === "right" || !root.vertical
         }
 
-        if (root.hideAtTime && Date.now() >= root.hideAtTime) {
-          root.hideAtTime = 0
-          root.hideBar()
+        WlrLayershell.namespace: "omarchy-autohide-trigger"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+
+        HoverHandler {
+          onHoveredChanged: {
+            root.edgeHovered = hovered
+            if (hovered) root.showBar()
+          }
         }
       }
     }
