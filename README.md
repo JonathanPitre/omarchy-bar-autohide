@@ -18,9 +18,9 @@ An event-driven auto-hide service plugin for the Omarchy bar.
 - Supports multiple monitors, scaling, rotation, and monitor offsets.
 
 A transparent one-pixel Quickshell surface listens for pointer entry at the bar
-edge. Omarchy's existing whole-bar hover state handles pointer exit. There is no
-cursor polling and no persistent helper process, so the plugin causes no idle
-timer wakeups.
+edge. A passive hover observer attached to each live bar surface handles pointer
+exit without blocking its controls. There is no cursor polling and no persistent
+helper process, so the plugin causes no idle timer wakeups.
 
 ## Requirements
 

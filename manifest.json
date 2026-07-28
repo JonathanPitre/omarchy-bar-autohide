@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "autohide",
   "name": "Autohide",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "Eric van Riet Paap",
   "description": "Event-driven auto-hide for the Omarchy bar",
   "kinds": ["service"],

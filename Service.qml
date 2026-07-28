@@ -14,13 +14,55 @@ Item {
   property var shell: null
   property bool autoRevealed: false
   property bool edgeHovered: false
+  property var barHoverObservers: []
+  property bool barSurfaceHovered: false
   readonly property var bar: shell ? shell.bar : null
   readonly property string position: bar ? bar.position : "top"
   readonly property bool vertical: position === "left" || position === "right"
   readonly property bool barHidden: bar ? bar.barHidden : true
-  readonly property bool barHovered: bar && "centerSectionHovered" in bar
+  readonly property bool centerSectionHovered: bar && "centerSectionHovered" in bar
     ? bar.centerSectionHovered : false
+  readonly property bool barHovered: barSurfaceHovered || centerSectionHovered
   readonly property bool popoutOpen: bar && bar.activePopout !== null
+
+  function refreshBarSurfaceHovered() {
+    for (const observer of barHoverObservers) {
+      if (observer && observer.hovered) {
+        barSurfaceHovered = true
+        return
+      }
+    }
+    barSurfaceHovered = false
+  }
+
+  function removeBarHoverObserver(observer) {
+    barHoverObservers = barHoverObservers.filter(candidate => candidate !== observer)
+    refreshBarSurfaceHovered()
+  }
+
+  function observeBarPanels() {
+    if (!bar || !("data" in bar)) return
+
+    const observedWindows = barHoverObservers.map(observer => observer.observedWindow)
+    for (let i = 0; i < bar.data.length; ++i) {
+      const variants = bar.data[i]
+      if (!variants || !("instances" in variants)) continue
+
+      for (let j = 0; j < variants.instances.length; ++j) {
+        const window = variants.instances[j]
+        if (!window || !("contentItem" in window) || !("screen" in window)
+            || "ghostScreen" in window || observedWindows.includes(window)) continue
+
+        const observer = barHoverObserverComponent.createObject(window.contentItem, {
+          "observedWindow": window
+        })
+        if (observer) {
+          barHoverObservers = barHoverObservers.concat([observer])
+          observedWindows.push(window)
+        }
+      }
+    }
+  }
 
   function hideBar() {
     if (!root.autoRevealed || !bar || bar.barHidden
@@ -47,6 +89,31 @@ Item {
     target: root.bar
     function onBarHiddenChanged() {
       if (root.barHidden) root.autoRevealed = false
+    }
+  }
+
+  Connections {
+    target: Quickshell
+    function onScreensChanged() { Qt.callLater(root.observeBarPanels) }
+  }
+
+  Component {
+    id: barHoverObserverComponent
+
+    Item {
+      required property var observedWindow
+      readonly property alias hovered: wholeBarHover.hovered
+
+      anchors.fill: parent
+      z: 1000000
+
+      HoverHandler {
+        id: wholeBarHover
+        blocking: false
+        onHoveredChanged: root.refreshBarSurfaceHovered()
+      }
+
+      Component.onDestruction: root.removeBarHoverObserver(this)
     }
   }
 
@@ -88,5 +155,8 @@ Item {
   Component.onCompleted: {
     Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
       + " && touch " + Util.shellQuote(barOffFile))
+    Qt.callLater(root.observeBarPanels)
   }
+
+  onBarChanged: Qt.callLater(root.observeBarPanels)
 }
