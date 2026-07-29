@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# Local development helper. Native Omarchy plugin removals do not run this script.
 set -euo pipefail
 
 restart=true
@@ -10,10 +11,13 @@ elif [[ $# -gt 0 ]]; then
   exit 2
 fi
 
+command -v python3 >/dev/null || { echo "python3 is required" >&2; exit 1; }
+
 config_home=${XDG_CONFIG_HOME:-$HOME/.config}
-plugin_dir="$config_home/omarchy/plugins/autohide"
+plugin_id="ericvrp.bar-autohide"
+plugin_dir="$config_home/omarchy/plugins/$plugin_id"
+legacy_plugin_dir="$config_home/omarchy/plugins/autohide"
 shell_config="$config_home/omarchy/shell.json"
-bar_off="$HOME/.local/state/omarchy/toggles/bar-off"
 
 if [[ -f $shell_config ]]; then
   python3 - "$shell_config" <<'PY'
@@ -31,11 +35,14 @@ with open(path, encoding="utf-8") as handle:
 plugins = config.get("plugins", [])
 filtered = [
     entry for entry in plugins
-    if not (isinstance(entry, dict) and entry.get("id") == "autohide")
+    if not (
+        isinstance(entry, dict)
+        and entry.get("id") in {"autohide", "ericvrp.bar-autohide"}
+    )
 ]
 
 if len(filtered) != len(plugins):
-    backup = f"{path}.bak.{int(time.time())}"
+    backup = f"{path}.bak.{time.time_ns()}"
     shutil.copy2(path, backup)
     config["plugins"] = filtered
 
@@ -50,18 +57,18 @@ if len(filtered) != len(plugins):
     except BaseException:
         os.unlink(temporary)
         raise
-    print(f"Disabled autohide; backup: {backup}")
+    print(f"Disabled ericvrp.bar-autohide; backup: {backup}")
 else:
-    print("Autohide is already disabled")
+    print("ericvrp.bar-autohide is already disabled")
 PY
 fi
 
 rm -rf "$plugin_dir"
-rm -f "$bar_off"
+rm -rf "$legacy_plugin_dir"
 
 if $restart; then
   command -v omarchy >/dev/null || { echo "omarchy is required to restart the shell" >&2; exit 1; }
   omarchy restart shell
 fi
 
-echo "Uninstalled Omarchy Autohide"
+echo "Uninstalled local development build"

@@ -1,6 +1,8 @@
-# Omarchy Autohide
+# Omarchy Bar Autohide
 
 An event-driven auto-hide service plugin for the Omarchy bar.
+
+![Omarchy Bar Autohide hidden and revealed states](preview.png)
 
 > [!IMPORTANT]
 > This plugin is for **Omarchy 4 (Quattro)**, where the desktop shell and bar
@@ -26,58 +28,37 @@ helper process, so the plugin causes no idle timer wakeups.
 
 - Omarchy with the Quickshell bar
 - Hyprland
-- Python 3 during installation only
 
 ## Install
 
 ```bash
-git clone https://github.com/ericvrp/omarchy-autohide.git
-cd omarchy-autohide
-./install.sh
+omarchy plugin add https://github.com/ericvrp/omarchy-bar-autohide.git --enable
 ```
 
-The installer:
-
-- Copies the plugin to `~/.config/omarchy/plugins/autohide`.
-- Adds `{ "id": "autohide" }` to the existing `plugins` array in
-  `~/.config/omarchy/shell.json` without replacing other settings.
-- Creates a timestamped backup before changing an existing shell config.
-- Restarts the Omarchy shell.
-
-Running `./install.sh` again updates the installed plugin without adding a
-duplicate config entry.
+Omarchy clones the repository to
+`~/.config/omarchy/plugins/ericvrp.bar-autohide`, validates it, and enables the
+service in the shell configuration.
 
 ## Update
 
 ```bash
-cd omarchy-autohide
-git pull
-./install.sh
+omarchy plugin update ericvrp.bar-autohide
 ```
+
+## Disable
+
+```bash
+omarchy plugin disable ericvrp.bar-autohide
+```
+
+Disabling or removing the plugin restores the bar visibility state from before
+the plugin was enabled.
 
 ## Uninstall
 
 ```bash
-cd omarchy-autohide
-./uninstall.sh
+omarchy plugin remove ericvrp.bar-autohide
 ```
-
-## Configuration
-
-Defaults are near the top of `Service.qml`:
-
-```qml
-readonly property int revealThickness: 1
-readonly property int hideDelayMs: 1000
-```
-
-The active edge is detected from `shell.bar.position`. Increasing
-`revealThickness` makes the invisible edge trigger easier to reach, but also
-makes that many pixels intercept pointer input while the bar is hidden or was
-revealed by the edge trigger.
-
-Re-run `./install.sh` after editing a clone outside the installed plugin
-directory.
 
 ## License And Warranty
 
@@ -85,3 +66,5 @@ Licensed under the [MIT License](LICENSE).
 
 The software is provided **as is, without warranty of any kind**, express or
 implied. See the license for the complete warranty and liability disclaimer.
+
+Development and local testing instructions are in [DEVELOPING.md](DEVELOPING.md).

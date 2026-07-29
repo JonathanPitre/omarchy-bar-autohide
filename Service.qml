@@ -1,4 +1,5 @@
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import qs.Commons
@@ -12,6 +13,8 @@ Item {
   property string toggleDir: Quickshell.env("HOME") + "/.local/state/omarchy/toggles"
   property string barOffFile: toggleDir + "/bar-off"
   property var shell: null
+  property bool initialBarHidden: false
+  property bool initialStateCaptured: false
   property bool autoRevealed: false
   property bool edgeHovered: false
   property var barHoverObservers: []
@@ -78,6 +81,26 @@ Item {
     }
   }
 
+  Process {
+    id: initialStateProbe
+
+    running: true
+    command: ["bash", "-c", "[[ -f " + Util.shellQuote(root.barOffFile)
+      + " ]] && echo hidden || echo visible"]
+    stdout: SplitParser {
+      onRead: function(line) {
+        root.initialBarHidden = String(line).trim() === "hidden"
+      }
+    }
+    onExited: function(exitCode) {
+      if (exitCode !== 0) return
+      root.initialStateCaptured = true
+      Util.execDetached("mkdir -p " + Util.shellQuote(root.toggleDir)
+        + " && touch " + Util.shellQuote(root.barOffFile))
+      Qt.callLater(root.observeBarPanels)
+    }
+  }
+
   Timer {
     interval: root.hideDelayMs
     running: root.autoRevealed && !root.barHidden
@@ -138,7 +161,7 @@ Item {
           right: root.position === "right" || !root.vertical
         }
 
-        WlrLayershell.namespace: "omarchy-autohide-trigger"
+        WlrLayershell.namespace: "omarchy-bar-autohide-trigger"
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
@@ -152,10 +175,14 @@ Item {
     }
   }
 
-  Component.onCompleted: {
-    Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
-      + " && touch " + Util.shellQuote(barOffFile))
-    Qt.callLater(root.observeBarPanels)
+  Component.onDestruction: {
+    if (!initialStateCaptured) return
+    if (initialBarHidden) {
+      Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
+        + " && touch " + Util.shellQuote(barOffFile))
+    } else {
+      Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
+    }
   }
 
   onBarChanged: Qt.callLater(root.observeBarPanels)
