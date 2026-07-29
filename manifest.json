@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "ericvrp.bar-autohide",
-  "name": "Omarchy Bar Autohide",
+  "name": "Bar Autohide",
   "version": "1.3.0",
   "author": "Eric van Riet Paap",
   "description": "Event-driven auto-hide for the Omarchy bar",
