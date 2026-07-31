@@ -28,6 +28,11 @@ Item {
   readonly property bool barHovered: barSurfaceHovered || centerSectionHovered
   readonly property bool popoutOpen: bar && bar.activePopout !== null
 
+  onBarSurfaceHoveredChanged: {
+    if (bar && typeof bar.setCenterSectionHovered === "function")
+      bar.setCenterSectionHovered(barSurfaceHovered)
+  }
+
   function refreshBarSurfaceHovered() {
     for (const observer of barHoverObservers) {
       if (observer && observer.hovered) {
@@ -176,6 +181,8 @@ Item {
   }
 
   Component.onDestruction: {
+    if (bar && typeof bar.setCenterSectionHovered === "function")
+      bar.setCenterSectionHovered(false)
     if (!initialStateCaptured) return
     if (initialBarHidden) {
       Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
