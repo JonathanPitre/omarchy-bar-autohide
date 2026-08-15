@@ -183,8 +183,15 @@ Item {
   Component.onDestruction: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
       bar.setCenterSectionHovered(false)
-    if (!initialStateCaptured) return
-    if (initialBarHidden) {
+    // initialStateCaptured may still be false here if the async probe
+    // (initialStateProbe) hasn't finished by the time the plugin is torn
+    // down (e.g. disabling the plugin right after enabling it, or a fast
+    // shell.json reload). Previously we bailed out in that case, leaving
+    // barOffFile touched forever and permanently hiding the core bar since
+    // Bar.qml also honors this file independently of the plugin. Default
+    // to restoring visibility (the common case) instead of leaving the
+    // bar stuck hidden.
+    if (initialStateCaptured && initialBarHidden) {
       Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
         + " && touch " + Util.shellQuote(barOffFile))
     } else {
