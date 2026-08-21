@@ -20,13 +20,9 @@ An event-driven auto-hide service plugin for the Omarchy bar.
 - Supports multiple monitors, scaling, rotation, and monitor offsets.
 
 A transparent one-pixel Quickshell surface listens for pointer entry at the bar
-edge. When the host still exposes the live Bar object, a passive hover observer
-attached to each bar surface handles pointer exit without blocking its controls.
-
-Omarchy 4.0.3+ gives third-party services a scalar bar facade (`PluginBarStateApi`)
-without `bar.data` or `activePopout`. In that case the plugin polls
-`hyprctl cursorpos` only while the bar is auto-revealed, so widgets stay
-reachable. There is no persistent helper process.
+edge. A passive hover observer attached to each live bar surface handles pointer
+exit without blocking its controls. There is no cursor polling and no persistent
+helper process, so the plugin causes no idle timer wakeups.
 
 ## Requirements
 
