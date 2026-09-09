@@ -19,14 +19,18 @@ Item {
   property bool edgeHovered: false
   property var barHoverObservers: []
   property bool barSurfaceHovered: false
+  property bool pointerInBarBand: false
   readonly property var bar: shell ? shell.bar : null
   readonly property string position: bar ? bar.position : "top"
   readonly property bool vertical: position === "left" || position === "right"
   readonly property bool barHidden: bar ? bar.barHidden : true
   readonly property bool centerSectionHovered: bar && "centerSectionHovered" in bar
     ? bar.centerSectionHovered : false
-  readonly property bool barHovered: barSurfaceHovered || centerSectionHovered
-  readonly property bool popoutOpen: bar && bar.activePopout !== null
+  readonly property bool barHovered: barSurfaceHovered || centerSectionHovered || pointerInBarBand
+  // Omarchy 4.0.3+ injects PluginBarStateApi (scalars only) into third-party
+  // services. `undefined !== null` is true, so the old check pinned the bar open.
+  readonly property bool popoutOpen: !!(bar && bar.activePopout)
+  readonly property bool canObserveBarSurfaces: !!(bar && "data" in bar)
 
   onBarSurfaceHoveredChanged: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
@@ -72,10 +76,31 @@ Item {
     }
   }
 
+  function cursorInBarBand(px, py) {
+    const size = Math.max(1, (bar && bar.barSize) || 30)
+    const screens = Quickshell.screens || []
+    for (let i = 0; i < screens.length; ++i) {
+      const s = screens[i]
+      if (!s) continue
+      const sx = Number(s.x || 0)
+      const sy = Number(s.y || 0)
+      const sw = Number(s.width || 0)
+      const sh = Number(s.height || 0)
+      if (sw <= 0 || sh <= 0) continue
+      if (px < sx || px >= sx + sw || py < sy || py >= sy + sh) continue
+      if (position === "top") return py < sy + size
+      if (position === "bottom") return py >= sy + sh - size
+      if (position === "left") return px < sx + size
+      if (position === "right") return px >= sx + sw - size
+    }
+    return false
+  }
+
   function hideBar() {
     if (!root.autoRevealed || !bar || bar.barHidden
         || root.edgeHovered || root.barHovered || root.popoutOpen) return
     root.autoRevealed = false
+    root.pointerInBarBand = false
     Util.execDetached("touch " + Util.shellQuote(barOffFile))
   }
 
@@ -106,6 +131,35 @@ Item {
     }
   }
 
+  Process {
+    id: cursorProbe
+
+    running: false
+    command: ["hyprctl", "cursorpos"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        const text = String(this.text || "").trim()
+        const parts = text.split(",")
+        if (parts.length < 2) return
+        root.pointerInBarBand = root.cursorInBarBand(Number(parts[0]), Number(parts[1]))
+      }
+    }
+  }
+
+  Timer {
+    interval: 80
+    repeat: true
+    running: root.autoRevealed && !root.barHidden && !root.canObserveBarSurfaces
+    onTriggered: {
+      if (!cursorProbe.running)
+        cursorProbe.running = true
+    }
+    onRunningChanged: {
+      if (!running)
+        root.pointerInBarBand = false
+    }
+  }
+
   Timer {
     interval: root.hideDelayMs
     running: root.autoRevealed && !root.barHidden
@@ -116,7 +170,10 @@ Item {
   Connections {
     target: root.bar
     function onBarHiddenChanged() {
-      if (root.barHidden) root.autoRevealed = false
+      if (root.barHidden) {
+        root.autoRevealed = false
+        root.pointerInBarBand = false
+      }
     }
   }
 
