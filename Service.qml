@@ -240,9 +240,11 @@ Item {
   Component.onDestruction: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
       bar.setCenterSectionHovered(false)
-    // Always restore bar state on unload. If initialStateCaptured is false the
-    // probe never completed, which means we never hid the bar ourselves, so
-    // removing bar-off is safe and ensures the bar is visible after removal.
+    // Always restore bar state on unload. initialStateCaptured may still be
+    // false if the async probe never finished before teardown (fast plugin
+    // disable or shell.json reload). In that case the probe already touched
+    // barOffFile, and Bar.qml honors that file independently of this plugin,
+    // so removing bar-off is safe and keeps the bar from getting stuck hidden.
     if (initialStateCaptured && initialBarHidden) {
       Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
         + " && touch " + Util.shellQuote(barOffFile))
