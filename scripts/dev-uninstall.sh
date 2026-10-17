@@ -66,6 +66,11 @@ fi
 rm -rf "$plugin_dir"
 rm -rf "$legacy_plugin_dir"
 
+# Remove the bar-off toggle so the bar is always visible after uninstall,
+# even if the QML onDestruction handler did not fire cleanly.
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/toggles"
+rm -f "$state_dir/bar-off"
+
 if $restart; then
   command -v omarchy >/dev/null || { echo "omarchy is required to restart the shell" >&2; exit 1; }
   omarchy restart shell
