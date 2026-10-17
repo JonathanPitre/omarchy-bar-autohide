@@ -14,7 +14,7 @@ An event-driven auto-hide service plugin for the Omarchy bar.
 - Supports bars anchored to the top, bottom, left, or right screen edge.
 - Reveals the bar only when the pointer reaches its anchored screen edge.
 - Keeps the bar open while the pointer remains over it.
-- Hides the bar 1000ms after the pointer leaves that area.
+- Hides the bar 200ms after the pointer leaves that area.
 - Leaves the bar visible when the user opens it with the bar hotkey.
 - Keeps the bar visible while a bar popout is open.
 - Supports multiple monitors, scaling, rotation, and monitor offsets.
