@@ -138,6 +138,7 @@ Item {
     command: ["hyprctl", "cursorpos"]
     stdout: StdioCollector {
       onStreamFinished: {
+        if (!root.autoRevealed || root.barHidden) return
         const text = String(this.text || "").trim()
         const parts = text.split(",")
         if (parts.length < 2) return
@@ -240,11 +241,10 @@ Item {
   Component.onDestruction: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
       bar.setCenterSectionHovered(false)
-    // Always restore bar state on unload. initialStateCaptured may still be
-    // false if the async probe never finished before teardown (fast plugin
-    // disable or shell.json reload). In that case the probe already touched
-    // barOffFile, and Bar.qml honors that file independently of this plugin,
-    // so removing bar-off is safe and keeps the bar from getting stuck hidden.
+    // Always clean up on unload. If the async probe never finished before
+    // teardown, its own restore never ran, so the rm below is the safe
+    // default (a no-op when nothing was stranded) instead of leaving
+    // bar-off behind to keep the bar stuck hidden.
     if (initialStateCaptured && initialBarHidden) {
       Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
         + " && touch " + Util.shellQuote(barOffFile))
