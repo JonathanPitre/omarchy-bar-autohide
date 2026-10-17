@@ -8,7 +8,7 @@ Item {
   id: root
 
   readonly property int revealThickness: 1
-  readonly property int hideDelayMs: 1000
+  readonly property int hideDelayMs: 200
 
   property string toggleDir: Quickshell.env("HOME") + "/.local/state/omarchy/toggles"
   property string barOffFile: toggleDir + "/bar-off"
