@@ -16,7 +16,7 @@ An event-driven auto-hide service plugin for the Omarchy bar.
 - Keeps the bar open while the pointer remains over it.
 - Hides the bar 200ms after the pointer leaves that area.
 - Leaves the bar visible when the user opens it with the bar hotkey.
-- Keeps the bar visible while a bar popout is open.
+- Keeps the bar visible while a bar popout is open wherever the plugin can see popout state.
 - Supports multiple monitors, scaling, rotation, and monitor offsets.
 
 A transparent one-pixel Quickshell surface listens for pointer entry at the bar
@@ -26,7 +26,10 @@ attached to each bar surface handles pointer exit without blocking its controls.
 Omarchy 4.0.3+ gives third-party services a scalar bar facade (`PluginBarStateApi`)
 without `bar.data` or `activePopout`. In that case the plugin polls
 `hyprctl cursorpos` only while the bar is auto-revealed, so widgets stay
-reachable. There is no persistent helper process.
+reachable. There is no persistent helper process. The facade exposes no popout
+state either, so on these hosts no plugin can keep the bar visible while a
+popout is open; exposing a read-only popout signal on the facade is the
+shell-side fix.
 
 ## Requirements
 

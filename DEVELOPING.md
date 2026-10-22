@@ -47,7 +47,7 @@ Defaults are near the top of `Service.qml`:
 
 ```qml
 readonly property int revealThickness: 1
-readonly property int hideDelayMs: 1000
+readonly property int hideDelayMs: 200
 ```
 
 The active edge is detected from `shell.bar.position`. Increasing
