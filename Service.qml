@@ -110,10 +110,10 @@ Item {
 
   function showBar() {
     if (bar && bar.barHidden) {
-      // The pointer provably sits on the edge trigger when the bar shows, so
-      // seed the band state; the next probes clear it once the pointer leaves.
-      // Without the seed, the reveal races the hide timer for 200ms+80ms.
-      root.pointerInBarBand = true
+      // The cursor probe path needs a seed while the reveal is sampled.
+      // Event-based hosts already track the bar surface directly.
+      if (!root.canObserveBarSurfaces)
+        root.pointerInBarBand = true
       root.autoRevealed = true
       Util.execDetached("rm -f " + Util.shellQuote(barOffFile) + barSyncNudge)
     }
