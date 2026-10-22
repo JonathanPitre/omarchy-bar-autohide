@@ -105,13 +105,17 @@ Item {
         || root.edgeHovered || root.barHovered || root.popoutOpen) return
     root.autoRevealed = false
     root.pointerInBarBand = false
-    Util.execDetached("touch " + Util.shellQuote(barOffFile))
+    Util.execDetached("touch " + Util.shellQuote(barOffFile) + barSyncNudge)
   }
 
   function showBar() {
     if (bar && bar.barHidden) {
+      // The pointer provably sits on the edge trigger when the bar shows, so
+      // seed the band state; the next probes clear it once the pointer leaves.
+      // Without the seed, the reveal races the hide timer for 200ms+80ms.
+      root.pointerInBarBand = true
       root.autoRevealed = true
-      Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
+      Util.execDetached("rm -f " + Util.shellQuote(barOffFile) + barSyncNudge)
     }
   }
 
@@ -145,8 +149,15 @@ Item {
         if (!root.autoRevealed || root.barHidden) return
         const text = String(this.text || "").trim()
         const parts = text.split(",")
-        if (parts.length < 2) return
-        root.pointerInBarBand = root.cursorInBarBand(Number(parts[0]), Number(parts[1]))
+        const px = Number(parts[0])
+        const py = Number(parts[1])
+        // A sample without a position carries no answer. The next probe either
+        // restores the state or confirms the exit; never run on stale data.
+        if (parts.length < 2 || Number.isNaN(px) || Number.isNaN(py)) {
+          root.pointerInBarBand = false
+          return
+        }
+        root.pointerInBarBand = root.cursorInBarBand(px, py)
       }
     }
   }
