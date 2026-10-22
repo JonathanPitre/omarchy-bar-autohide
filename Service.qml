@@ -31,6 +31,10 @@ Item {
   // services. `undefined !== null` is true, so the old check pinned the bar open.
   readonly property bool popoutOpen: !!(bar && bar.activePopout)
   readonly property bool canObserveBarSurfaces: !!(bar && "data" in bar)
+  // The host's toggles-dir watch can stop delivering events after quick
+  // successive flag changes (see Bar.qml's syncHidden). Nudge it so the bar's
+  // hidden probe re-reads the flag after each write.
+  readonly property string barSyncNudge: " && omarchy-shell -q omarchy.bar syncHidden"
 
   onBarSurfaceHoveredChanged: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
@@ -126,7 +130,7 @@ Item {
       if (exitCode !== 0) return
       root.initialStateCaptured = true
       Util.execDetached("mkdir -p " + Util.shellQuote(root.toggleDir)
-        + " && touch " + Util.shellQuote(root.barOffFile))
+        + " && touch " + Util.shellQuote(root.barOffFile) + barSyncNudge)
       Qt.callLater(root.observeBarPanels)
     }
   }
@@ -247,9 +251,9 @@ Item {
     // bar-off behind to keep the bar stuck hidden.
     if (initialStateCaptured && initialBarHidden) {
       Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
-        + " && touch " + Util.shellQuote(barOffFile))
+        + " && touch " + Util.shellQuote(barOffFile) + barSyncNudge)
     } else {
-      Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
+      Util.execDetached("rm -f " + Util.shellQuote(barOffFile) + barSyncNudge)
     }
   }
 
