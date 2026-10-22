@@ -8,7 +8,7 @@ Item {
   id: root
 
   readonly property int revealThickness: 1
-  readonly property int hideDelayMs: 1000
+  readonly property int hideDelayMs: 200
 
   property string toggleDir: Quickshell.env("HOME") + "/.local/state/omarchy/toggles"
   property string barOffFile: toggleDir + "/bar-off"
@@ -19,14 +19,22 @@ Item {
   property bool edgeHovered: false
   property var barHoverObservers: []
   property bool barSurfaceHovered: false
+  property bool pointerInBarBand: false
   readonly property var bar: shell ? shell.bar : null
   readonly property string position: bar ? bar.position : "top"
   readonly property bool vertical: position === "left" || position === "right"
   readonly property bool barHidden: bar ? bar.barHidden : true
   readonly property bool centerSectionHovered: bar && "centerSectionHovered" in bar
     ? bar.centerSectionHovered : false
-  readonly property bool barHovered: barSurfaceHovered || centerSectionHovered
-  readonly property bool popoutOpen: bar && bar.activePopout !== null
+  readonly property bool barHovered: barSurfaceHovered || centerSectionHovered || pointerInBarBand
+  // Omarchy 4.0.3+ injects PluginBarStateApi (scalars only) into third-party
+  // services. `undefined !== null` is true, so the old check pinned the bar open.
+  readonly property bool popoutOpen: !!(bar && bar.activePopout)
+  readonly property bool canObserveBarSurfaces: !!(bar && "data" in bar)
+  // The host's toggles-dir watch can stop delivering events after quick
+  // successive flag changes (see Bar.qml's syncHidden). Nudge it so the bar's
+  // hidden probe re-reads the flag after each write.
+  readonly property string barSyncNudge: " && omarchy-shell -q omarchy.bar syncHidden"
 
   onBarSurfaceHoveredChanged: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
@@ -72,17 +80,42 @@ Item {
     }
   }
 
+  function cursorInBarBand(px, py) {
+    const size = Math.max(1, (bar && bar.barSize) || 30)
+    const screens = Quickshell.screens || []
+    for (let i = 0; i < screens.length; ++i) {
+      const s = screens[i]
+      if (!s) continue
+      const sx = Number(s.x || 0)
+      const sy = Number(s.y || 0)
+      const sw = Number(s.width || 0)
+      const sh = Number(s.height || 0)
+      if (sw <= 0 || sh <= 0) continue
+      if (px < sx || px >= sx + sw || py < sy || py >= sy + sh) continue
+      if (position === "top") return py < sy + size
+      if (position === "bottom") return py >= sy + sh - size
+      if (position === "left") return px < sx + size
+      if (position === "right") return px >= sx + sw - size
+    }
+    return false
+  }
+
   function hideBar() {
     if (!root.autoRevealed || !bar || bar.barHidden
         || root.edgeHovered || root.barHovered || root.popoutOpen) return
     root.autoRevealed = false
-    Util.execDetached("touch " + Util.shellQuote(barOffFile))
+    root.pointerInBarBand = false
+    Util.execDetached("touch " + Util.shellQuote(barOffFile) + barSyncNudge)
   }
 
   function showBar() {
     if (bar && bar.barHidden) {
+      // The cursor probe path needs a seed while the reveal is sampled.
+      // Event-based hosts already track the bar surface directly.
+      if (!root.canObserveBarSurfaces)
+        root.pointerInBarBand = true
       root.autoRevealed = true
-      Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
+      Util.execDetached("rm -f " + Util.shellQuote(barOffFile) + barSyncNudge)
     }
   }
 
@@ -101,8 +134,45 @@ Item {
       if (exitCode !== 0) return
       root.initialStateCaptured = true
       Util.execDetached("mkdir -p " + Util.shellQuote(root.toggleDir)
-        + " && touch " + Util.shellQuote(root.barOffFile))
+        + " && touch " + Util.shellQuote(root.barOffFile) + barSyncNudge)
       Qt.callLater(root.observeBarPanels)
+    }
+  }
+
+  Process {
+    id: cursorProbe
+
+    running: false
+    command: ["hyprctl", "cursorpos"]
+    stdout: StdioCollector {
+      onStreamFinished: {
+        if (!root.autoRevealed || root.barHidden) return
+        const text = String(this.text || "").trim()
+        const parts = text.split(",")
+        const px = Number(parts[0])
+        const py = Number(parts[1])
+        // A sample without a position carries no answer. The next probe either
+        // restores the state or confirms the exit; never run on stale data.
+        if (parts.length < 2 || Number.isNaN(px) || Number.isNaN(py)) {
+          root.pointerInBarBand = false
+          return
+        }
+        root.pointerInBarBand = root.cursorInBarBand(px, py)
+      }
+    }
+  }
+
+  Timer {
+    interval: 80
+    repeat: true
+    running: root.autoRevealed && !root.barHidden && !root.canObserveBarSurfaces
+    onTriggered: {
+      if (!cursorProbe.running)
+        cursorProbe.running = true
+    }
+    onRunningChanged: {
+      if (!running)
+        root.pointerInBarBand = false
     }
   }
 
@@ -116,7 +186,10 @@ Item {
   Connections {
     target: root.bar
     function onBarHiddenChanged() {
-      if (root.barHidden) root.autoRevealed = false
+      if (root.barHidden) {
+        root.autoRevealed = false
+        root.pointerInBarBand = false
+      }
     }
   }
 
@@ -183,12 +256,15 @@ Item {
   Component.onDestruction: {
     if (bar && typeof bar.setCenterSectionHovered === "function")
       bar.setCenterSectionHovered(false)
-    if (!initialStateCaptured) return
-    if (initialBarHidden) {
+    // Always clean up on unload. If the async probe never finished before
+    // teardown, its own restore never ran, so the rm below is the safe
+    // default (a no-op when nothing was stranded) instead of leaving
+    // bar-off behind to keep the bar stuck hidden.
+    if (initialStateCaptured && initialBarHidden) {
       Util.execDetached("mkdir -p " + Util.shellQuote(toggleDir)
-        + " && touch " + Util.shellQuote(barOffFile))
+        + " && touch " + Util.shellQuote(barOffFile) + barSyncNudge)
     } else {
-      Util.execDetached("rm -f " + Util.shellQuote(barOffFile))
+      Util.execDetached("rm -f " + Util.shellQuote(barOffFile) + barSyncNudge)
     }
   }
 
